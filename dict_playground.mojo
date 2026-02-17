@@ -1,122 +1,127 @@
-from collections.dict import Dict, KeyElement, DictEntry
+from collections.dict import Dict
+
+# from utils.variant import Variant
 
 
-trait TPet:
-    fn __init__(inout self, name: String):
-        ...
-
-    fn __copyinit__(inout self, existing: Self):
-        ...
-
-    fn __moveinit__(inout self, owned existing: Self):
-        ...
-
-    fn __del__(owned self):
-        ...
-
-    fn name(self) -> String:
-        ...
-
+trait TPet(Copyable, ImplicitlyDestructible):
     fn start(self, edible: String):
         ...
 
-
-struct MyPet(TPet):
-    var _name: String
-
-    fn __init__(inout self, name: String):
-        self._name = name
-
-    fn __copyinit__(inout self, existing: Self):
-        self._name = existing._name
-
-    fn __moveinit__(inout self, owned existing: Self):
-        self._name = existing._name
-
-    fn __del__(owned self):
-        pass
-
-    fn name(self) -> String:
-        return self._name
-
-    fn start(self, edible: String):
-        self.drink(edible)
-
-    fn drink(self, liquid: String):
-        print(self._name, "drink", liquid)
+    fn run(self, edible: String):
+        ...
 
 
-struct YourPet(TPet):
-    var _name: String
-
-    fn __init__(inout self, name: String):
-        self._name = name
-
-    fn __copyinit__(inout self, existing: Self):
-        self._name = existing._name
-
-    fn __moveinit__(inout self, owned existing: Self):
-        self._name = existing._name
-
-    fn __del__(owned self):
-        pass
-
-    fn name(self) -> String:
-        return self._name
-
-    fn start(self, edible: String):
-        self.eat(edible)
-
-    fn eat(self, food: String):
-        print(self._name, "eat", food)
+# trait TCat(TPet):
+#     fn drink(self, liquid: String): ...
 
 
-@value  # <-- Added 2024-03-14 EzRyder
-struct Pet[T: TPet](CollectionElement):
+# trait TDog(TPet):
+#     fn eat(self, food: String): ...
+
+
+@fieldwise_init
+struct Cat(TPet):
     var name: String
-    var pet: T
-
-    fn __init__(inout self, name: String, pet: T):
-        self.name = name
-        self.pet = pet
-
-    fn __copyinit__(inout self, existing: Self):
-        self.name = existing.name
-        self.pet = existing.pet
-
-    fn __moveinit__(inout self, owned existing: Self):
-        self.name = existing.name
-        self.pet = existing.pet
-
-    fn __del__(owned self):
-        pass
 
     fn start(self, edible: String):
-        self.pet.start(edible)
+        self.run(edible)
+
+    fn run(self, liquid: String):
+        print(self.name, "drink", liquid)
+
+
+@fieldwise_init
+struct Dog(TPet):
+    var name: String
+
+    fn start(self, edible: String):
+        self.run(edible)
+
+    fn run(self, food: String):
+        print(self.name, "eat", food)
+
+
+# @value
+# struct Pet(TPet):
+#     var name: String
+#     # var pet: TPet
+
+#     fn start(self, edible: String):
+#         self.run(edible)
+
+#     fn run(self, food: String):
+#         print(self.name, "eat", food)
+
+
+@fieldwise_init
+struct Pet[S: TPet]:
+    var name: String
+    var pet: Self.S
+
+    # fn start(self, edible: String):
+    #     self.run(edible)
+
+    # fn run(self, food: String):
+    #     print(self.name, "eat", food)
+
+
+comptime cats = "Cats"
+comptime dogs = "Dogs"
 
 
 fn main() raises:
-    alias cats = "Cats"
-    alias dogs = "Dogs"
+    my_pet = Cat(cats)
+    my_pet.start("champagne.")
+    my_pet.run("iced tea.")
+    ref ref_my_pet = my_pet
+    # ref_my_pet.run("iced tea.")
 
-    var my_pet = MyPet(cats)
-    var your_pet = YourPet(dogs)
+    your_pet = Dog(dogs)
+    your_pet.start("blueberries.")
+    your_pet.run("treats.")
 
-    var my_cats = Pet(cats, my_pet)
-    my_cats.start("champagne.")
+    # var d = Dict[String, Pet[TPet]]()
+    d = Dict[String, Cat]()
+    d[cats] = my_pet.copy()
+    some_pet = d[cats].copy()
+    some_pet.run("water.")
+    # d[dogs] = your_pet
 
-    var my_dogs = Pet(dogs, your_pet)
-    my_dogs.start("blueberries.")
+    # var pets = DynamicVector[Pet[TPet]]()
+    pets = List[Cat]()
+    pets.append(my_pet.copy())
+    # pets.append(your_pet)
+    for pet in pets:
+        pet.run("lemonade.")
+
+    # var some_pets = [my_pet, your_pet]
+    # some_pets.get[0, Cat]
+
+    # var d = Dict[String, Variant[Cat, Dog]]()
+    # d[cats] = my_pet
+    # d[dogs] = your_pet
+
+    # var some_pet = d[dogs]
+    # some_pet.get[Dog]
+    # d[dogs].run("treats.")
+
+    # var d = Dict[String, TPet]()  # Compiler crashes
+    # var d = Dict[String, CollectionElement]()  # Compiler crashes
+
+    # var my_cats = Pet(cats)
+    # my_cats.set_pet(my_pet)
+
+    # var my_dogs = Pet(dogs)
 
     # var d = Dict[StringKey, CollectionElement]()  # Compiler crashes
-    var d = Dict[String, Pet[MyPet]]()  # Only works for MyPet, not YourPet
+    # var d = Dict[String, TPet]()  # Only works for MyPet, not YourPet
     # var d = Dict[String, Pet[TPet]]()  # Error here
 
-    d[cats] = my_cats
-    d[dogs] = my_dogs
+    # d[cats] = my_pet
+    # d[dogs] = your_pet
 
-    print(len(d))  # prints 2
-    print(d[cats].name)  # prints 1
-    d[cats].start("iced tea.")
-    print(d.pop(dogs).name)  # prints 2
-    print(len(d))  # prints 1
+    # print(len(d))  # prints 2
+    # print(d[cats].name)  # prints 1
+    # d[cats].start("iced tea.")
+    # print(d.pop(dogs).name)  # prints 2
+    # print(len(d))  # prints 1
